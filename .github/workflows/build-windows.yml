@@ -1,4 +1,5 @@
 name: Build Windows Installer & MSI
+# Fork build: TeleDrive with folder sharing by link
 
 on:
   push:
