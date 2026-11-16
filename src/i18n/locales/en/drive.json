@@ -13,7 +13,8 @@
     "archived": "Archived",
     "trash": "Trash",
     "backups": "Backups",
-    "settings": "Settings"
+    "settings": "Settings",
+    "shared": "Shared"
   },
   "header": {
     "searchPlaceholder": "Search in Drive",

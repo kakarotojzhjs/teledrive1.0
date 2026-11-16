@@ -21,7 +21,9 @@ import {
   ArchiveRestore,
   CheckCircle,
   Check,
+  Share2,
 } from "lucide-react";
+import { requestShareFolder } from "@/components/share/ShareFolderDialog";
 import { TeleFile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { isEditableFile } from "@/lib/files/editableTypes";
@@ -112,6 +114,15 @@ export const FileActionsMenu = React.memo(function FileActionsMenu({
               <Download className="h-4 w-4 text-[#444746] dark:text-[#c4c7c5] shrink-0" strokeWidth={1.75} />
               <span>{isDirectory ? t("menu.downloadAsZip", "Download as ZIP") : t("menu.download")}</span>
             </DropdownMenuItem>
+            {isDirectory && !file.trashed && !file.archived && (
+              <DropdownMenuItem
+                onClick={() => requestShareFolder(file)}
+                className="flex items-center gap-2.5 px-3 py-2.5 sm:py-2 min-h-[40px] sm:min-h-0 text-xs font-medium cursor-pointer rounded-xl text-[#1f1f1f] dark:text-[#e3e3e3] hover:bg-[#f0f4f9] dark:hover:bg-[#1f2124]"
+              >
+                <Share2 className="h-4 w-4 text-[#444746] dark:text-[#c4c7c5] shrink-0" strokeWidth={1.75} />
+                <span>{t("menu.shareLink", "Share link")}</span>
+              </DropdownMenuItem>
+            )}
             {!isDirectory && onOfflineToggle && (
               <DropdownMenuItem
                 onClick={() => onOfflineToggle(file)}

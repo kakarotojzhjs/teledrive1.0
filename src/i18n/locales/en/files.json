@@ -14,7 +14,8 @@
     "restore": "Restore",
     "deletePermanently": "Delete Permanently",
     "moveToTrash": "Move to Trash",
-    "downloadAsZip": "Download as ZIP"
+    "downloadAsZip": "Download as ZIP",
+    "shareLink": "Share link"
   },
   "browser": {
     "fileType": {

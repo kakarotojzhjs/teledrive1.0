@@ -14,7 +14,8 @@
     "restore": "Restaurar",
     "deletePermanently": "Excluir permanentemente",
     "moveToTrash": "Mover para a lixeira",
-    "downloadAsZip": "Baixar como ZIP"
+    "downloadAsZip": "Baixar como ZIP",
+    "shareLink": "Compartilhar link"
   },
   "browser": {
     "fileType": {

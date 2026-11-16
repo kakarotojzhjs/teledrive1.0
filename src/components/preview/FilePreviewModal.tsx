@@ -1600,7 +1600,7 @@ export function FilePreviewModal({ file, initialEditMode = false, onClose, onFil
     !isHtmlPreview &&
     !isTableView &&
     !isSvgImageView;
-  const canEdit           = Boolean(currentFile && isEditableFile(currentFile) && !isTruncatedPreview && !loading && !error && textContent !== null);
+  const canEdit           = Boolean(currentFile && !currentFile.id.startsWith("share_") && isEditableFile(currentFile) && !isTruncatedPreview && !loading && !error && textContent !== null);
   const canRunInO2        = textContent !== null && !loading && !error && O2_LANG_MAP[langInfo.hljsLang] !== undefined;
 
   const statusParts: string[] = [];

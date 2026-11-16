@@ -18,6 +18,7 @@ import {
   Sun,
   Moon,
   ChevronLeft,
+  Share2,
 } from "lucide-react";
 import { DriveSidebar } from "./DriveSidebar";
 import { NewActionButton } from "./NewActionButton";
@@ -45,6 +46,7 @@ import { BackupProgressOverlay } from "@/components/backup/BackupProgressOverlay
 import { downloadFileFromTelegram } from "@/lib/telegram/downloader";
 import { downloadSelectionAsZip } from "@/lib/telegram/zipDownloader";
 import { FilePreviewModal } from "@/components/preview/FilePreviewModal";
+import { ShareFolderDialog } from "@/components/share/ShareFolderDialog";
 import RecoveryDialog from "@/components/settings/RecoveryDialog";
 import { TeleFile } from "@/lib/types";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
@@ -626,6 +628,7 @@ export default function DriveLayout() {
       { label: t("nav.myDrive"),  icon: HardDrive, path: "/drive/my-drive",  badge: totalCount, dropTarget: "nav:/drive/my-drive" },
       { label: t("nav.recent"),   icon: Clock,      path: "/drive/recent", dropTarget: null, badge: null },
       { label: t("nav.starred"),  icon: Star,       path: "/drive/starred",   badge: starredCount, dropTarget: "nav:/drive/starred" },
+      { label: t("nav.shared", "Shared"), icon: Share2, path: "/drive/shared", dropTarget: null, badge: null },
       { label: t("nav.archived"), icon: Archive,    path: "/drive/archived",  badge: archivedCount, dropTarget: "nav:/drive/archived" },
       { label: t("nav.trash"),    icon: Trash2,     path: "/drive/trash",     badge: trashCount, dropTarget: "nav:/drive/trash" },
     ];
@@ -663,6 +666,7 @@ export default function DriveLayout() {
     if (path === "/drive/recent") return t("nav.recent");
     if (path === "/drive/archived") return t("nav.archived");
     if (path === "/drive/trash") return t("nav.trash");
+    if (path === "/drive/shared") return t("nav.shared", "Shared");
     if (path.startsWith("/drive/backups")) return t("nav.backups");
     if (path.startsWith("/settings")) return t("nav.settings");
     return "TeleDrive";
@@ -961,6 +965,7 @@ export default function DriveLayout() {
           }
         }}
       />
+      <ShareFolderDialog />
       <UploadProgressPanel />
       <BackupProgressOverlay />
 

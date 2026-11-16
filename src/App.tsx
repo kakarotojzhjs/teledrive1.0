@@ -17,6 +17,7 @@ import ArchivedPage from "./pages/ArchivedPage";
 import SearchPage from "./pages/SearchPage";
 import BackupsPage from "./pages/BackupsPage";
 import BackupsFolderPage from "./pages/BackupsFolderPage";
+import SharedPage from "./pages/SharedPage";
 
 // Lazy pages
 const DriveLayout = lazy(() => import("./components/layout/DriveLayout"));
@@ -236,6 +237,7 @@ function App() {
             <Route path="trash" element={<TrashPage />} />
             <Route path="archived" element={<ArchivedPage />} />
             <Route path="search" element={<SearchPage />} />
+            <Route path="shared" element={<SharedPage />} />
             <Route path="folder/*" element={<DriveBrowserPage />} />
             {/* Device-backup entry points — available to all users. */}
             <Route path="backups" element={<BackupsPage />} />
