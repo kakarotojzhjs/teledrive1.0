@@ -32,6 +32,9 @@ concurrency:
   group: build-windows-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build Windows Installers
@@ -126,3 +129,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "TeleDrive $TAG (compartilhamento por link)" --notes "Instalador do Windows: baixe teledrive-setup.exe." --latest
+          gh release upload "$TAG" "$DIST_DIR/teledrive-setup.exe" "$DIST_DIR/teledrive.msi" "$DIST_DIR/SHA256SUMS.txt" --clobber
