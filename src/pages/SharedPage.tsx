@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import {
   FileArchive,
   Link2,
   Loader2,
+  Lock,
   LogOut,
   RefreshCw,
   Settings2,
@@ -26,6 +27,14 @@ import { useAuthStore } from "@/stores/authStore";
 import { useFileStore } from "@/stores/fileStore";
 import { shareAccountKey, useShareStore, type ReceivedShare } from "@/stores/shareStore";
 import { leaveShare, listSharedFiles, openSharedLink } from "@/lib/share/folderShare";
+import {
+  WrongSharePasswordError,
+  forgetProtectedShare,
+  isProtectedShare,
+  refreshProtectedShare,
+  restoreProtectedShareKeys,
+  unlockProtectedShare,
+} from "@/lib/share/protectedShare";
 import { normalizeFolderPath } from "@/lib/files/pathUtils";
 import { downloadFileFromTelegram } from "@/lib/telegram/downloader";
 import { downloadSelectionAsZip } from "@/lib/telegram/zipDownloader";
@@ -50,7 +59,8 @@ function dirEntry(name: string, parent: string, channelId: string): TeleFile {
 function downloadOne(file: TeleFile) {
   downloadFileFromTelegram(file.channelId, file.messageId, file.name, undefined, {
     segments: file.segments,
-    plainSize: file.size,
+    enc: file.enc,
+    plainSize: file.enc?.plainSize ?? file.size,
   }).catch((err) => {
     console.error("[SharedPage] download failed", err);
     toast.error(err?.message || "Download failed");
@@ -64,6 +74,17 @@ function SharedBrowser({ share, onBack }: { share: ReceivedShare; onBack: () => 
   const removeReceived = useShareStore((s) => s.removeReceived);
   const [path, setPath] = useState("/");
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
+  // Protected shares: re-register saved decryption keys after an app restart.
+  useEffect(() => {
+    if (!share.locked || !share.unlocked) return;
+    void restoreProtectedShareKeys(share.channelId).then((ok) => {
+      if (!ok) upsertReceived(account, { ...share, unlocked: false, files: [] });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [share.channelId]);
 
   const { folders, files } = useMemo(() => {
     const here = normalizeFolderPath(path);
@@ -86,6 +107,15 @@ function SharedBrowser({ share, onBack }: { share: ReceivedShare; onBack: () => 
   const refresh = async () => {
     setLoading(true);
     try {
+      if (share.locked) {
+        const r = await refreshProtectedShare(share.channelId);
+        if (!r) {
+          upsertReceived(account, { ...share, unlocked: false, files: [] });
+          return;
+        }
+        upsertReceived(account, { ...share, title: r.title, files: r.files, openedAt: Date.now() });
+        return;
+      }
       const list = await listSharedFiles(share.channelId);
       upsertReceived(account, { ...share, files: list, openedAt: Date.now() });
     } catch (err: any) {
@@ -120,9 +150,59 @@ function SharedBrowser({ share, onBack }: { share: ReceivedShare; onBack: () => 
     } catch (err) {
       console.warn(err);
     }
+    await forgetProtectedShare(share.channelId);
     removeReceived(account, share.channelId);
     onBack();
   };
+
+  const unlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password || unlocking) return;
+    setUnlocking(true);
+    try {
+      const r = await unlockProtectedShare(share.channelId, password);
+      upsertReceived(account, { ...share, title: r.title, files: r.files, unlocked: true, openedAt: Date.now() });
+      setPassword("");
+    } catch (err: any) {
+      toast.error(
+        err instanceof WrongSharePasswordError
+          ? t("wrongPassword", "Wrong password")
+          : err?.message || t("openError", "Could not open this link")
+      );
+    } finally {
+      setUnlocking(false);
+    }
+  };
+
+  if (share.locked && !share.unlocked) {
+    return (
+      <div className="flex flex-col gap-4 p-4 sm:p-6 max-w-md">
+        <Button variant="ghost" size="sm" className="self-start" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+          <span className="ml-1.5">{t("back", "Back")}</span>
+        </Button>
+        <div className="flex items-center gap-2 text-base font-semibold">
+          <Lock className="h-4 w-4" /> {t("lockedTitle", "This folder is password protected")}
+        </div>
+        <form onSubmit={unlock} className="flex gap-2">
+          <Input
+            type="password"
+            autoFocus
+            placeholder={t("enterPassword", "Enter the password")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <Button type="submit" disabled={unlocking || !password}>
+            {unlocking ? <Loader2 className="h-4 w-4 animate-spin" /> : t("unlock", "Unlock")}
+          </Button>
+        </form>
+        <Button variant="ghost" size="sm" className="self-start text-red-600" onClick={leave}>
+          <LogOut className="h-4 w-4" />
+          <span className="ml-1.5">{t("remove", "Remove")}</span>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4 p-4 sm:p-6 max-w-4xl">
@@ -215,12 +295,15 @@ export default function SharedPage() {
     setOpening(true);
     try {
       const res = await openSharedLink(link);
+      const locked = await isProtectedShare(res.channelId);
       upsertReceived(account, {
         channelId: res.channelId,
         link: link.trim(),
-        title: res.title,
+        title: locked ? "🔒" : res.title,
         openedAt: Date.now(),
-        files: res.files,
+        files: locked ? [] : res.files,
+        locked,
+        unlocked: false,
       });
       setLink("");
       setOpenId(res.channelId);
@@ -274,6 +357,7 @@ export default function SharedPage() {
             <div key={r.channelId} className={`${rowCls} cursor-pointer`} onClick={() => setOpenId(r.channelId)}>
               <FolderIcon size="sm" className="h-5 w-5 shrink-0" />
               <span className="text-sm font-medium truncate flex-1">{r.title}</span>
+              {r.locked && <Lock className="h-3.5 w-3.5 opacity-70" />}
               <span className="text-xs opacity-70">{t("filesCount", "{{count}} files", { count: r.files.length })}</span>
               <ChevronRight className="h-4 w-4 opacity-60" />
             </div>
@@ -299,6 +383,7 @@ export default function SharedPage() {
               >
                 {s.folderPath}
               </button>
+              {s.locked && <Lock className="h-3.5 w-3.5 opacity-70" />}
               <span className="text-xs opacity-70 hidden sm:inline">{t("filesCount", "{{count}} files", { count: s.fileCount })}</span>
               <Button
                 variant="ghost"

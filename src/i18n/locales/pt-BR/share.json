@@ -34,5 +34,19 @@
   "downloadZip": "Baixar ZIP",
   "refreshError": "Não foi possível atualizar",
   "emptyFolder": "Esta pasta está vazia.",
-  "leaveConfirm": "Remover esta pasta compartilhada da sua lista?"
+  "leaveConfirm": "Remover esta pasta compartilhada da sua lista?",
+  "protectTitle": "Proteger com senha",
+  "protectDesc": "Só arquivos criptografados são compartilhados. No Telegram ninguém vê nomes nem conteúdo — só o TeleDrive com a senha abre.",
+  "password": "Senha (mín. 6 caracteres)",
+  "passwordConfirm": "Confirmar senha",
+  "passwordShort": "A senha precisa ter pelo menos 6 caracteres",
+  "passwordMismatch": "As senhas não coincidem",
+  "plainNote": "{{count}} arquivos sem criptografia serão ignorados (ficariam visíveis no Telegram).",
+  "skippedPlain": "{{count}} arquivos sem criptografia não foram incluídos",
+  "lockedInfo": "Protegido por senha — envie a senha para as pessoas separadamente.",
+  "lockedTitle": "Esta pasta é protegida por senha",
+  "enterPassword": "Digite a senha",
+  "unlock": "Desbloquear",
+  "wrongPassword": "Senha incorreta",
+  "remove": "Remover"
 }

@@ -34,5 +34,19 @@
   "downloadZip": "Download ZIP",
   "refreshError": "Could not refresh",
   "emptyFolder": "This folder is empty.",
-  "leaveConfirm": "Remove this shared folder from your list?"
+  "leaveConfirm": "Remove this shared folder from your list?",
+  "protectTitle": "Protect with password",
+  "protectDesc": "Only encrypted files are shared. In Telegram nobody sees names or contents — only TeleDrive with the password opens them.",
+  "password": "Password (min. 6 characters)",
+  "passwordConfirm": "Confirm password",
+  "passwordShort": "Password must have at least 6 characters",
+  "passwordMismatch": "Passwords don't match",
+  "plainNote": "{{count}} unencrypted files will be skipped (they would be visible in Telegram).",
+  "skippedPlain": "{{count}} unencrypted files were not included",
+  "lockedInfo": "Password protected — send the password to people separately.",
+  "lockedTitle": "This folder is password protected",
+  "enterPassword": "Enter the password",
+  "unlock": "Unlock",
+  "wrongPassword": "Wrong password",
+  "remove": "Remove"
 }

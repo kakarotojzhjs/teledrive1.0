@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Copy, Check, Link2, Loader2, RefreshCw, Trash2, Share2 } from "lucide-react";
+import { Copy, Check, Link2, Loader2, Lock, RefreshCw, Trash2, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -24,6 +24,7 @@ import {
   syncShare,
   type ShareProgress,
 } from "@/lib/share/folderShare";
+import { forgetProtectedShare, shareFolderProtected, syncProtectedShare } from "@/lib/share/protectedShare";
 
 export const SHARE_FOLDER_EVENT = "teledrive-share-folder";
 
@@ -65,6 +66,9 @@ export function ShareFolderDialog() {
   const [busy, setBusy] = useState<null | "create" | "sync" | "revoke">(null);
   const [progress, setProgress] = useState<ShareProgress | null>(null);
   const [copied, setCopied] = useState(false);
+  const [protect, setProtect] = useState(false);
+  const [password, setPassword] = useState("");
+  const [password2, setPassword2] = useState("");
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -73,6 +77,10 @@ export function ShareFolderDialog() {
       setFolder(f);
       setProgress(null);
       setCopied(false);
+      setPassword("");
+      setPassword2("");
+      const enc = collectFolderFiles(useFileStore.getState().files, folderFullPath(f)).some((x) => x.enc);
+      setProtect(enc);
     };
     window.addEventListener(SHARE_FOLDER_EVENT, handler);
     return () => window.removeEventListener(SHARE_FOLDER_EVENT, handler);
@@ -89,6 +97,8 @@ export function ShareFolderDialog() {
     return { total: list.length, encrypted: list.filter((f) => f.enc).length };
   }, [files, folder, path]);
 
+  const shareCount = protect ? stats.encrypted : stats.total - stats.encrypted;
+
   const close = () => {
     if (busy) return;
     setFolder(null);
@@ -98,8 +108,15 @@ export function ShareFolderDialog() {
     if (!folder) return;
     setBusy("create");
     try {
-      const res = await shareFolder(folder, files, setProgress);
+      if (protect) {
+        if (password.length < 6) throw new Error(t("passwordShort", "Password must have at least 6 characters"));
+        if (password !== password2) throw new Error(t("passwordMismatch", "Passwords don't match"));
+      }
+      const res = protect
+        ? await shareFolderProtected(folder, files, password, setProgress)
+        : { ...(await shareFolder(folder, files, setProgress)), skippedPlain: 0 };
       upsertOwned(account, {
+        locked: protect,
         channelId: res.channelId,
         link: res.link,
         title: res.title,
@@ -111,6 +128,8 @@ export function ShareFolderDialog() {
       toast.success(t("created", "Link created — {{count}} files shared", { count: res.shared }));
       if (res.skippedEncrypted > 0)
         toast.warning(t("skippedEncrypted", "{{count}} encrypted files were not shared", { count: res.skippedEncrypted }));
+      if (res.skippedPlain > 0)
+        toast.warning(t("skippedPlain", "{{count}} unencrypted files were not included", { count: res.skippedPlain }));
       if (res.failed > 0) toast.warning(t("failedSome", "{{count}} files failed to share", { count: res.failed }));
     } catch (err: any) {
       toast.error(err?.message || t("createError", "Could not create the share link"));
@@ -124,11 +143,13 @@ export function ShareFolderDialog() {
     if (!existing) return;
     setBusy("sync");
     try {
-      const r = await syncShare(existing.channelId, existing.folderPath, files, setProgress);
+      const r = existing.locked
+        ? await syncProtectedShare(existing.channelId, existing.folderPath, files, setProgress)
+        : await syncShare(existing.channelId, existing.folderPath, files, setProgress);
       upsertOwned(account, {
         ...existing,
         updatedAt: Date.now(),
-        fileCount: collectFolderFiles(files, existing.folderPath).filter((f) => !f.enc).length,
+        fileCount: collectFolderFiles(files, existing.folderPath).filter((f) => (existing.locked ? !!f.enc : !f.enc)).length,
       });
       toast.success(t("synced", "Share updated (+{{added}} / −{{removed}})", r));
     } catch (err: any) {
@@ -145,6 +166,7 @@ export function ShareFolderDialog() {
     setBusy("revoke");
     try {
       await revokeShare(existing.channelId);
+      await forgetProtectedShare(existing.channelId);
     } catch (err) {
       console.warn("[ShareFolderDialog] revoke failed", err);
     } finally {
@@ -189,6 +211,12 @@ export function ShareFolderDialog() {
                 {copied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
+            {existing.locked && (
+              <p className="text-[11px] flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                <Lock className="h-3.5 w-3.5" />
+                {t("lockedInfo", "Password protected — send the password to people separately.")}
+              </p>
+            )}
             <p className="text-[11px] text-[#444746] dark:text-[#C4C7C5]">
               {t("sharedInfo", "{{count}} files shared · updated {{date}}", {
                 count: existing.fileCount,
@@ -197,15 +225,62 @@ export function ShareFolderDialog() {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl bg-[#f0f4f9] dark:bg-[#161719] p-3 text-xs text-[#1f1f1f] dark:text-[#e3e3e3] space-y-1">
-            <div>{t("willShare", "{{count}} files will be shared.", { count: stats.total - stats.encrypted })}</div>
-            {stats.encrypted > 0 && (
-              <div className="text-amber-600 dark:text-amber-400">
-                {t("encryptedNote", "{{count}} encrypted files will be skipped (recipients can't decrypt them).", {
-                  count: stats.encrypted,
-                })}
+          <div className="space-y-3">
+            <label className="flex items-start gap-2.5 cursor-pointer rounded-xl border border-slate-200 dark:border-white/[0.08] p-3">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={protect}
+                disabled={!!busy}
+                onChange={(e) => setProtect(e.target.checked)}
+              />
+              <div className="text-xs">
+                <div className="font-semibold flex items-center gap-1.5 text-[#1f1f1f] dark:text-[#e3e3e3]">
+                  <Lock className="h-3.5 w-3.5" /> {t("protectTitle", "Protect with password")}
+                </div>
+                <div className="text-[#444746] dark:text-[#C4C7C5]">
+                  {t(
+                    "protectDesc",
+                    "Only encrypted files are shared. In Telegram nobody sees names or contents — only TeleDrive with the password opens them."
+                  )}
+                </div>
+              </div>
+            </label>
+            {protect && (
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={t("password", "Password (min. 6 characters)")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <Input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder={t("passwordConfirm", "Confirm password")}
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
+                />
               </div>
             )}
+            <div className="rounded-xl bg-[#f0f4f9] dark:bg-[#161719] p-3 text-xs text-[#1f1f1f] dark:text-[#e3e3e3] space-y-1">
+              <div>{t("willShare", "{{count}} files will be shared.", { count: shareCount })}</div>
+              {protect && stats.total - stats.encrypted > 0 && (
+                <div className="text-amber-600 dark:text-amber-400">
+                  {t("plainNote", "{{count}} unencrypted files will be skipped (they would be visible in Telegram).", {
+                    count: stats.total - stats.encrypted,
+                  })}
+                </div>
+              )}
+              {!protect && stats.encrypted > 0 && (
+                <div className="text-amber-600 dark:text-amber-400">
+                  {t("encryptedNote", "{{count}} encrypted files will be skipped (recipients can't decrypt them).", {
+                    count: stats.encrypted,
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -240,7 +315,7 @@ export function ShareFolderDialog() {
               <Button variant="ghost" disabled={!!busy} onClick={close}>
                 {t("cancel", "Cancel")}
               </Button>
-              <Button disabled={!!busy || stats.total - stats.encrypted === 0} onClick={handleCreate}>
+              <Button disabled={!!busy || shareCount === 0 || (protect && !password)} onClick={handleCreate}>
                 {busy === "create" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
                 <span className="ml-1.5">{t("create", "Create link")}</span>
               </Button>

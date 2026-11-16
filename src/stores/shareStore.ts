@@ -12,6 +12,8 @@ export interface OwnedShare {
   createdAt: number;
   updatedAt: number;
   fileCount: number;
+  /** Password-protected share (encrypted files only). */
+  locked?: boolean;
 }
 
 /** A folder someone else shared with this account. */
@@ -21,6 +23,9 @@ export interface ReceivedShare {
   title: string;
   openedAt: number;
   files: TeleFile[];
+  /** Password-protected share; `files` is empty until unlocked. */
+  locked?: boolean;
+  unlocked?: boolean;
 }
 
 interface ShareState {

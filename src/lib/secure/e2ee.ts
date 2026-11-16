@@ -1208,7 +1208,26 @@ export const useEncryptionStore = create<EncryptionState>((set, get) => ({
  * Prefers exact `fileSaltB64` matches from synced vault state before falling back
  * to the passphrase prompt for historical manually encrypted files.
  */
+/**
+ * Keys received through password-protected folder shares. They are kept apart
+ * from the account vault so locking/unlocking the user's own vault never
+ * touches them, and they are only ever used to decrypt shared files.
+ */
+const externalKeysBySalt = new Map<string, CryptoKey>();
+
+export function registerExternalDecryptionKey(fileSaltB64: string, key: CryptoKey): void {
+  externalKeysBySalt.set(fileSaltB64, key);
+}
+
+export function hasExternalDecryptionKey(fileSaltB64: string): boolean {
+  return externalKeysBySalt.has(fileSaltB64);
+}
+
 export async function requireEncryptionKey(fileSaltB64?: string): Promise<CryptoKey> {
+  if (fileSaltB64) {
+    const shared = externalKeysBySalt.get(fileSaltB64);
+    if (shared) return shared;
+  }
   const store = useEncryptionStore.getState();
   if (!store.initialized) {
     await store.initFromVault(store.activeChannelId);
