@@ -30,6 +30,9 @@ concurrency:
   group: build-android-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build-android:
     name: Build Android APK
@@ -167,3 +170,12 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+      - name: Publish APK to GitHub Release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}-share"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "TeleDrive $TAG (compartilhamento por link)" --notes "Windows: teledrive-setup.exe · Android: teledrive.apk" --latest || true
+          gh release upload "$TAG" "distribution/v${VERSION}/teledrive.apk" --clobber

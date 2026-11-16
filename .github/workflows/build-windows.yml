@@ -136,5 +136,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/* ]]; then TAG="${GITHUB_REF_NAME}"; else TAG="v${VERSION}-share"; fi
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "TeleDrive $TAG (compartilhamento por link)" --notes "Instalador do Windows: baixe teledrive-setup.exe." --latest
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "TeleDrive $TAG (compartilhamento por link)" --notes "Windows: teledrive-setup.exe · Android: teledrive.apk" --latest || true
           gh release upload "$TAG" "$DIST_DIR/teledrive-setup.exe" "$DIST_DIR/teledrive.msi" "$DIST_DIR/SHA256SUMS.txt" --clobber
